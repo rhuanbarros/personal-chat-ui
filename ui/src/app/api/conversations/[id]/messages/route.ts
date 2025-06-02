@@ -8,11 +8,12 @@ import { createApiResponse, validateRequiredFields } from '@/lib/apiUtils';
 // POST add message to conversation
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
+    const { id } = await params;
     const body = await request.json();
     const { content, sender, modelConfig } = body;
 
@@ -24,7 +25,7 @@ export async function POST(
       );
     }
 
-    const conversation = await Conversation.findById(params.id);
+    const conversation = await Conversation.findById(id);
     
     if (!conversation) {
       return NextResponse.json(

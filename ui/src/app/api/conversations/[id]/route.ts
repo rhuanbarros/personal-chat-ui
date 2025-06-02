@@ -6,12 +6,13 @@ import { createApiResponse, validateRequiredFields } from '@/lib/apiUtils';
 // GET specific conversation by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
-    const conversation = await Conversation.findById(params.id).lean();
+    const { id } = await params;
+    const conversation = await Conversation.findById(id).lean();
     
     if (!conversation) {
       return NextResponse.json(
@@ -33,11 +34,12 @@ export async function GET(
 // PUT update conversation
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
+    const { id } = await params;
     const body = await request.json();
     const { title } = body;
 
@@ -50,7 +52,7 @@ export async function PUT(
     }
 
     const conversation = await Conversation.findByIdAndUpdate(
-      params.id,
+      id,
       { 
         title,
         updatedAt: new Date()
@@ -78,12 +80,13 @@ export async function PUT(
 // DELETE conversation (optional for now)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
-    const conversation = await Conversation.findByIdAndDelete(params.id);
+    const { id } = await params;
+    const conversation = await Conversation.findByIdAndDelete(id);
 
     if (!conversation) {
       return NextResponse.json(

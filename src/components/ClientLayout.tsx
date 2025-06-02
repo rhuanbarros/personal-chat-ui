@@ -102,7 +102,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             <Settings size={20} className="text-gray-600" />
           </button>
         )}
-        <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 overflow-hidden h-full">
           {children}
         </div>
       </main>

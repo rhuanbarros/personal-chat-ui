@@ -75,7 +75,7 @@ const CreatePromptModal: React.FC<CreatePromptModalProps> = ({
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${
                 errors.name ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="e.g., Code Review Helper"
@@ -95,7 +95,7 @@ const CreatePromptModal: React.FC<CreatePromptModalProps> = ({
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={8}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical text-black ${
                 errors.text ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="Enter your prompt text here..."

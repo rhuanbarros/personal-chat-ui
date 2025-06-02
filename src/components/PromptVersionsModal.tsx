@@ -113,7 +113,7 @@ const PromptVersionsModal: React.FC<PromptVersionsModalProps> = ({
                   value={newVersionText}
                   onChange={(e) => setNewVersionText(e.target.value)}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-vertical text-black"
                   placeholder="Enter the new version text..."
                   disabled={loading}
                 />

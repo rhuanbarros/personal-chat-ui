@@ -81,7 +81,7 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black ${
                 errors.name ? 'border-red-300' : 'border-gray-300'
               }`}
               placeholder="Enter prompt name"

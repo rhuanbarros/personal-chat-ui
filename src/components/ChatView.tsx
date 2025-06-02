@@ -9,6 +9,7 @@ interface ChatViewProps {
   onSendMessage: (content: string) => void;
   onUpdateTitle: (conversationId: string, newTitle: string) => void;
   loading: boolean;
+  aiThinking?: boolean;
   configuration: ModelConfiguration;
 }
 
@@ -17,6 +18,7 @@ const ChatView: React.FC<ChatViewProps> = ({
   onSendMessage,
   onUpdateTitle,
   loading,
+  aiThinking = false,
   configuration
 }) => {
   const [message, setMessage] = useState('');
@@ -48,7 +50,7 @@ const ChatView: React.FC<ChatViewProps> = ({
   }, [conversation]);
 
   const handleSendMessage = () => {
-    if (message.trim() && !loading) {
+    if (message.trim() && !loading && !aiThinking) {
       onSendMessage(message.trim());
       setMessage('');
     }
@@ -179,6 +181,20 @@ const ChatView: React.FC<ChatViewProps> = ({
                 }`}
               >
                 {(() => {
+                  // Special handling for AI thinking indicator
+                  if (msg.sender === 'ai' && msg.content === '...') {
+                    return (
+                      <div className="flex items-center space-x-1">
+                        <div className="text-gray-600">AI is thinking</div>
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
                   // Render based on configuration
                   return msg.sender === 'ai' && configuration.renderMarkdown ? (
                     <div className="prose prose-sm prose-gray max-w-none">
@@ -235,7 +251,7 @@ const ChatView: React.FC<ChatViewProps> = ({
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your message..."
+              placeholder={aiThinking ? "AI is responding..." : "Type your message..."}
               className="flex-1 resize-none border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500"
               rows={2}
               style={{
@@ -243,15 +259,15 @@ const ChatView: React.FC<ChatViewProps> = ({
                 minHeight: '40px',
                 maxHeight: '200px'
               }}
-              disabled={loading}
+              disabled={loading || aiThinking}
             />
             <button
               onClick={handleSendMessage}
-              disabled={!message.trim() || loading}
+              disabled={!message.trim() || loading || aiThinking}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               <Send size={16} />
-              {loading ? 'Sending...' : 'Send'}
+              {aiThinking ? 'AI thinking...' : loading ? 'Sending...' : 'Send'}
             </button>
           </div>
         </div>

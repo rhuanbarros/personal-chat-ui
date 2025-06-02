@@ -21,8 +21,8 @@ export default function ConversationPage() {
   } = useConversations();
 
   const {
-    sendingMessage,
-    sendMessage
+    aiThinking,
+    sendMessageOptimistic
   } = useMessages();
 
   const { configuration } = useModelConfiguration();
@@ -38,9 +38,15 @@ export default function ConversationPage() {
       return;
     }
 
-    const updatedConversation = await sendMessage(activeConversation._id!, content, configuration);
+    // Use optimistic updates for better UX
+    const updatedConversation = await sendMessageOptimistic(
+      activeConversation, 
+      content, 
+      updateActiveConversation,
+      configuration
+    );
     
-    // Update the active conversation state immediately with the new message
+    // Update the active conversation state with the final result
     if (updatedConversation) {
       updateActiveConversation(updatedConversation);
     }
@@ -51,7 +57,8 @@ export default function ConversationPage() {
       conversation={activeConversation}
       onSendMessage={handleSendMessage}
       onUpdateTitle={updateConversationTitle}
-      loading={conversationsLoading || sendingMessage}
+      loading={conversationsLoading}
+      aiThinking={aiThinking}
       configuration={configuration}
     />
   );

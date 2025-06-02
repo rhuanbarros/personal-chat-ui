@@ -7,19 +7,21 @@ import mongoose from 'mongoose';
 // GET single saved prompt with all versions
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    const { id } = await params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         createApiResponse(false, undefined, 'Invalid prompt ID'),
         { status: 400 }
       );
     }
 
-    const savedPrompt = await SavedPrompt.findById(params.id).lean();
+    const savedPrompt = await SavedPrompt.findById(id);
     
     if (!savedPrompt) {
       return NextResponse.json(
@@ -29,13 +31,16 @@ export async function GET(
     }
 
     // Sort versions by date (newest first)
-    const sortedVersions = savedPrompt.versions.sort((a, b) => 
+    const sortedVersions = [...savedPrompt.versions].sort((a, b) => 
       new Date(b.dateCreated).getTime() - new Date(a.dateCreated).getTime()
     );
 
     const response = {
-      ...savedPrompt,
-      versions: sortedVersions
+      _id: savedPrompt._id,
+      name: savedPrompt.name,
+      versions: sortedVersions,
+      createdAt: savedPrompt.createdAt,
+      updatedAt: savedPrompt.updatedAt
     };
 
     return NextResponse.json(createApiResponse(true, response));
@@ -51,12 +56,14 @@ export async function GET(
 // PUT update prompt (either update name or add new version)
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    const { id } = await params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         createApiResponse(false, undefined, 'Invalid prompt ID'),
         { status: 400 }
@@ -66,7 +73,7 @@ export async function PUT(
     const body = await request.json();
     const { name, text, addVersion } = body;
 
-    const savedPrompt = await SavedPrompt.findById(params.id);
+    const savedPrompt = await SavedPrompt.findById(id);
     
     if (!savedPrompt) {
       return NextResponse.json(
@@ -103,19 +110,21 @@ export async function PUT(
 // DELETE saved prompt
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await dbConnect();
     
-    if (!mongoose.Types.ObjectId.isValid(params.id)) {
+    const { id } = await params;
+    
+    if (!mongoose.Types.ObjectId.isValid(id)) {
       return NextResponse.json(
         createApiResponse(false, undefined, 'Invalid prompt ID'),
         { status: 400 }
       );
     }
 
-    const savedPrompt = await SavedPrompt.findByIdAndDelete(params.id);
+    const savedPrompt = await SavedPrompt.findByIdAndDelete(id);
     
     if (!savedPrompt) {
       return NextResponse.json(

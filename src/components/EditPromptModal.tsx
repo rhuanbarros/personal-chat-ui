@@ -8,7 +8,7 @@ import savedPromptService from '@/services/savedPromptService';
 interface EditPromptModalProps {
   prompt: SavedPromptSummary;
   onClose: () => void;
-  onSubmit: (id: string, name: string) => Promise<void>;
+  onSubmit: (id: string, name: string, text?: string) => Promise<void>;
   loading: boolean;
 }
 
@@ -22,7 +22,6 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({
   const [text, setText] = useState(prompt.latestVersion?.text || '');
   const [originalText, setOriginalText] = useState(prompt.latestVersion?.text || '');
   const [errors, setErrors] = useState<{ name?: string; text?: string }>({});
-  const [isUpdatingText, setIsUpdatingText] = useState(false);
 
   useEffect(() => {
     setName(prompt.name);
@@ -66,26 +65,16 @@ const EditPromptModal: React.FC<EditPromptModalProps> = ({
     }
     
     try {
-      // Update name if changed
-      if (nameChanged) {
-        await onSubmit(prompt._id, name.trim());
-      }
-      
-      // Add new version if text changed
-      if (textChanged) {
-        setIsUpdatingText(true);
-        await savedPromptService.addVersionToPrompt(prompt._id, text.trim());
-      }
-      
+      // Always call the parent's onSubmit with both name and text
+      // The parent will determine what needs to be updated
+      await onSubmit(prompt._id, name.trim(), textChanged ? text.trim() : undefined);
       onClose();
     } catch (error) {
       // Error handling is done in the parent component
-    } finally {
-      setIsUpdatingText(false);
     }
   };
 
-  const isLoading = loading || isUpdatingText;
+  const isLoading = loading;
   const hasChanges = name.trim() !== prompt.name || text.trim() !== originalText;
 
   return (

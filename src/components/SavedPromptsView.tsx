@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { BookOpen, Plus, Search, Edit, Trash2, History, Copy, Clock } from 'lucide-react';
 import { useSavedPrompts } from '@/hooks/useSavedPrompts';
 import { SavedPromptSummary } from '@/services/savedPromptService';
+import savedPromptService from '@/services/savedPromptService';
 import CreatePromptModal from './CreatePromptModal';
 import EditPromptModal from './EditPromptModal';
 import PromptVersionsModal from './PromptVersionsModal';
@@ -50,9 +51,17 @@ const SavedPromptsView: React.FC = () => {
     }
   };
 
-  const handleUpdatePrompt = async (id: string, name: string) => {
+  const handleUpdatePrompt = async (id: string, name: string, text?: string) => {
     try {
-      await updateSavedPrompt(id, { name });
+      if (text) {
+        // If text is provided, update both name and add new version
+        await updateSavedPrompt(id, { name });
+        await savedPromptService.addVersionToPrompt(id, text);
+      } else {
+        // Only update name
+        await updateSavedPrompt(id, { name });
+      }
+      
       // Refresh the list to show updated data including latest versions
       await fetchSavedPrompts(pagination.currentPage);
       setEditingPrompt(null);

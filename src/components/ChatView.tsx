@@ -117,9 +117,9 @@ const ChatView: React.FC<ChatViewProps> = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
+    <div className="flex-1 flex flex-col bg-white h-full min-h-0">
       {/* Header with editable title */}
-      <div className="border-b border-gray-200 p-4">
+      <div className="border-b border-gray-200 p-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           {isEditingTitle ? (
             <div className="flex items-center gap-2 flex-1">
@@ -162,7 +162,7 @@ const ChatView: React.FC<ChatViewProps> = ({
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {conversation.messages.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <p>No messages yet. Start the conversation!</p>
@@ -237,7 +237,7 @@ const ChatView: React.FC<ChatViewProps> = ({
       </div>
 
       {/* Message Input */}
-      <div className="border-t border-gray-200">
+      <div className="border-t border-gray-200 flex-shrink-0 bg-white">
         {/* Resizable Handle */}
         <div 
           className={`h-2 bg-gray-400 cursor-ns-resize hover:bg-gray-500 transition-colors ${isResizing ? 'bg-gray-500' : ''}`}
@@ -264,7 +264,7 @@ const ChatView: React.FC<ChatViewProps> = ({
             <button
               onClick={handleSendMessage}
               disabled={!message.trim() || loading || aiThinking}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2 flex-shrink-0"
             >
               <Send size={16} />
               {aiThinking ? 'AI thinking...' : loading ? 'Sending...' : 'Send'}

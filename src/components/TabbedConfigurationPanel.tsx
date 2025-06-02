@@ -205,7 +205,7 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
   // Show loading state until providers are loaded and we're on the client
   if (loading || !isClient) {
     return (
-      <div className="w-80 bg-white border-l border-gray-200 p-6 flex flex-col">
+      <div className="w-80 bg-white border-l border-gray-200 p-6 flex flex-col h-full">
         <h2 className="text-lg font-semibold text-gray-800 mb-6">CONFIGURATION</h2>
         <div className="flex items-center justify-center py-8">
           <div className="text-gray-500">Loading configuration...</div>
@@ -215,12 +215,12 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
   }
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-      <div className="p-6">
-        <h2 className="text-lg font-semibold text-gray-800 mb-6">CONFIGURATION</h2>
+    <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
+      <div className="p-6 flex flex-col h-full">
+        <h2 className="text-lg font-semibold text-gray-800 mb-6 flex-shrink-0">CONFIGURATION</h2>
         
         {/* Tab Navigation */}
-        <div className="flex mb-6 border-b border-gray-200">
+        <div className="flex mb-6 border-b border-gray-200 flex-shrink-0">
           <button
             onClick={() => setActiveTab('simple-models')}
             className={`flex-1 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -244,7 +244,7 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
         </div>
         
         {/* Tab Content */}
-        <div className="flex-1">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {activeTab === 'simple-models' ? renderSimpleModelsTab() : renderAgentsTab()}
         </div>
       </div>

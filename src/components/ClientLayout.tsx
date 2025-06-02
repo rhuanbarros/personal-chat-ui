@@ -78,7 +78,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const shouldShowConfigPanel = isInConversation && showConfigPanel;
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100 overflow-hidden">
       <Sidebar
         conversations={conversations}
         onNewChat={handleNewChat}
@@ -91,7 +91,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         hasMore={hasMore}
         onLoadMore={loadMoreConversations}
       />
-      <main className="flex-1 flex flex-col relative">
+      <main className="flex-1 flex flex-col relative min-h-0 overflow-hidden">
         {/* Configuration Toggle Button - only show in conversations */}
         {isInConversation && (
           <button
@@ -102,13 +102,17 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
             <Settings size={20} className="text-gray-600" />
           </button>
         )}
-        {children}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          {children}
+        </div>
       </main>
       {shouldShowConfigPanel && (
-        <TabbedConfigurationPanel
-          configuration={configuration}
-          onConfigurationChange={updateConfiguration}
-        />
+        <div className="flex-shrink-0">
+          <TabbedConfigurationPanel
+            configuration={configuration}
+            onConfigurationChange={updateConfiguration}
+          />
+        </div>
       )}
     </div>
   );

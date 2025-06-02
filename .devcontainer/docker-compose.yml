@@ -22,6 +22,7 @@ services:
     environment:
       - NODE_ENV=development
       - AI_BACKEND=http://ai:8010
+      - MONGODB_URI=mongodb://db:27020/personal-chat
 
 volumes:
   node_modules: 

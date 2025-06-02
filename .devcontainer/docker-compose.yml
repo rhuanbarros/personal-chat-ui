@@ -18,10 +18,10 @@ services:
     networks:
       - app-network
     ports:
-      - "3000:3000"
-    # environment:
-      # - NODE_ENV=development
-      # - BACKEND_URL=http://backend:8000
+      - "3010:3000"
+    environment:
+      - NODE_ENV=development
+      - AI_BACKEND=http://ai:8010
 
 volumes:
   node_modules: 

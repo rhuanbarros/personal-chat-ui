@@ -1,0 +1,27 @@
+version: '3.8'
+
+networks:
+  app-network:
+    external: true
+    name: personal-chat-project_app-network
+
+services:
+  ui:
+    build: 
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ../..:/workspaces:cached
+      - node_modules:/workspaces/ui/node_modules
+    working_dir: /workspaces/ui
+    command: sleep infinity
+    networks:
+      - app-network
+    ports:
+      - "3000:3000"
+    # environment:
+      # - NODE_ENV=development
+      # - BACKEND_URL=http://backend:8000
+
+volumes:
+  node_modules: 

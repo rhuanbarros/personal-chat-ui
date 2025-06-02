@@ -16,6 +16,12 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
   const [availableModelsForProvider, setAvailableModelsForProvider] = useState(
     getModelsByProvider(configuration.provider)
   );
+  const [isClient, setIsClient] = useState(false);
+
+  // Track if we're on the client to avoid hydration mismatches
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleChange = useCallback((field: keyof ModelConfiguration, value: string | number | boolean) => {
     console.log(`🔧 ConfigurationPanel: Changing ${field} to`, value);
@@ -46,7 +52,8 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
     }
   }, [selectedProvider, configuration, onConfigurationChange]);
 
-  if (loading) {
+  // Show loading state until providers are loaded and we're on the client
+  if (loading || !isClient) {
     return (
       <div className="w-80 bg-white border-l border-gray-200 p-6 flex flex-col">
         <h2 className="text-lg font-semibold text-gray-800 mb-6">CONFIGURATION</h2>
@@ -73,7 +80,7 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900"
           >
             {availableProviders.length === 0 ? (
-              <option value="">No providers available</option>
+              <option value={configuration.provider}>{configuration.provider.charAt(0).toUpperCase() + configuration.provider.slice(1)}</option>
             ) : (
               availableProviders.map(provider => (
                 <option key={provider} value={provider}>
@@ -96,7 +103,7 @@ const ConfigurationPanel: React.FC<ConfigurationPanelProps> = ({
             disabled={availableModelsForProvider.length === 0}
           >
             {availableModelsForProvider.length === 0 ? (
-              <option value="">No models available for this provider</option>
+              <option value={configuration.modelName}>{configuration.modelName}</option>
             ) : (
               availableModelsForProvider.map(model => (
                 <option key={model.name} value={model.name}>

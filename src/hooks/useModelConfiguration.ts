@@ -15,32 +15,7 @@ let globalConfiguration: ModelConfiguration = DEFAULT_CONFIG;
 let globalListeners: Array<(config: ModelConfiguration) => void> = [];
 let globalAvailableModels: ConfigModel[] = [];
 let globalAvailableProviders: string[] = [];
-
-// Initialize from localStorage once and load models
-if (typeof window !== 'undefined') {
-  const savedConfig = localStorage.getItem('modelConfiguration');
-  if (savedConfig) {
-    try {
-      const parsed = JSON.parse(savedConfig);
-      globalConfiguration = { ...DEFAULT_CONFIG, ...parsed };
-    } catch (error) {
-      console.error('Failed to parse saved configuration:', error);
-    }
-  }
-  
-  // Load available models and providers
-  const configService = ConfigService.getInstance();
-  configService.loadConfig().then(() => {
-    configService.getModels().then(models => {
-      globalAvailableModels = models;
-    });
-    configService.getProviders().then(providers => {
-      globalAvailableProviders = providers;
-    });
-  }).catch(error => {
-    console.error('Failed to load configuration:', error);
-  });
-}
+let configLoaded = false;
 
 const notifyListeners = (config: ModelConfiguration) => {
   globalListeners.forEach(listener => listener(config));
@@ -51,13 +26,33 @@ const notifyListeners = (config: ModelConfiguration) => {
   }
 };
 
+const loadConfigFromLocalStorage = () => {
+  if (typeof window !== 'undefined') {
+    const savedConfig = localStorage.getItem('modelConfiguration');
+    if (savedConfig) {
+      try {
+        const parsed = JSON.parse(savedConfig);
+        globalConfiguration = { ...DEFAULT_CONFIG, ...parsed };
+      } catch (error) {
+        console.error('Failed to parse saved configuration:', error);
+      }
+    }
+  }
+};
+
 export const useModelConfiguration = () => {
   const [configuration, setConfiguration] = useState<ModelConfiguration>(globalConfiguration);
   const [availableModels, setAvailableModels] = useState<ConfigModel[]>(globalAvailableModels);
   const [availableProviders, setAvailableProviders] = useState<string[]>(globalAvailableProviders);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!configLoaded);
 
   useEffect(() => {
+    // Load from localStorage on client-side only
+    if (!configLoaded) {
+      loadConfigFromLocalStorage();
+      setConfiguration(globalConfiguration);
+    }
+
     // Add this component as a listener
     const listener = (newConfig: ModelConfiguration) => {
       setConfiguration(newConfig);
@@ -67,7 +62,7 @@ export const useModelConfiguration = () => {
     
     // Load configuration if not already loaded
     const loadConfig = async () => {
-      if (globalAvailableModels.length === 0 || globalAvailableProviders.length === 0) {
+      if (!configLoaded) {
         setLoading(true);
         try {
           const configService = ConfigService.getInstance();
@@ -78,6 +73,8 @@ export const useModelConfiguration = () => {
           
           globalAvailableModels = models;
           globalAvailableProviders = providers;
+          configLoaded = true;
+          
           setAvailableModels(models);
           setAvailableProviders(providers);
           
@@ -90,6 +87,7 @@ export const useModelConfiguration = () => {
       } else {
         setAvailableModels(globalAvailableModels);
         setAvailableProviders(globalAvailableProviders);
+        setLoading(false);
       }
     };
     

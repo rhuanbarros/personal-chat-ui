@@ -128,14 +128,19 @@ class AIService {
   private buildMessagesArray(userMessage: string, conversationContext?: string[]): Array<{ [key: string]: any }> {
     const messages: Array<{ [key: string]: any }> = [];
     
+    console.log('🔍 AI Service: Building messages array');
+    console.log('🔍 AI Service: conversationContext:', conversationContext);
+    
     // Add conversation context if available
     if (conversationContext && conversationContext.length > 0) {
       conversationContext.forEach(contextMessage => {
         // Enhanced parsing to handle role-based messages
         if (contextMessage.startsWith('system: ')) {
+          const systemContent = contextMessage.substring(8).trim();
+          console.log('🔍 AI Service: Found system message:', systemContent);
           messages.push({
             role: 'system',
-            content: contextMessage.substring(8).trim()
+            content: systemContent
           });
         } else {
           const [sender, content] = contextMessage.split(': ', 2);
@@ -162,6 +167,7 @@ class AIService {
       content: userMessage
     });
 
+    console.log('🔍 AI Service: Final messages array being sent to backend:', JSON.stringify(messages, null, 2));
     return messages;
   }
 

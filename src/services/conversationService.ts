@@ -9,6 +9,7 @@ import { ModelConfiguration } from '@/types';
 
 export interface SendMessageOptions {
   modelConfig?: ModelConfiguration;
+  systemPrompt?: string;
 }
 
 export interface PaginationMetadata {
@@ -159,6 +160,11 @@ class ConversationService {
       // Include model configuration if provided
       if (options?.modelConfig) {
         requestBody.modelConfig = options.modelConfig;
+      }
+      
+      // Include system prompt if provided
+      if (options?.systemPrompt) {
+        requestBody.systemPrompt = options.systemPrompt;
       }
 
       const response = await apiFetch<Conversation>(`${this.baseUrl}/${conversationId}/messages`, {

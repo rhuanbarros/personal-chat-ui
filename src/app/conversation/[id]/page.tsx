@@ -60,20 +60,31 @@ export default function ConversationPage() {
       return;
     }
 
-    // Apply system prompt to conversation before sending
-    let conversationToSend = activeConversation;
-    if (selectedPrompt) {
-      conversationToSend = applySystemPromptToConversation(activeConversation);
-      // Update the active conversation to show the system prompt immediately
-      updateActiveConversation(conversationToSend);
+    console.log('🔍 ConversationPage: handleSendMessage called');
+    console.log('🔍 ConversationPage: selectedPrompt:', selectedPrompt);
+    console.log('🔍 ConversationPage: activeConversation messages before:', activeConversation.messages.length);
+
+    // Prepare options with system prompt if selected
+    const messageOptions: any = {};
+    if (configuration) {
+      messageOptions.modelConfig = configuration;
+    }
+    
+    if (selectedPrompt?.latestVersion?.text && !hasSystemPrompt(activeConversation)) {
+      console.log('🔍 ConversationPage: Adding system prompt to message options');
+      messageOptions.systemPrompt = selectedPrompt.latestVersion.text;
+      
+      // Apply system prompt to local conversation for immediate UI update
+      const conversationWithPrompt = applySystemPromptToConversation(activeConversation);
+      updateActiveConversation(conversationWithPrompt);
     }
 
     // Use optimistic updates for better UX
     const updatedConversation = await sendMessageOptimistic(
-      conversationToSend, 
+      activeConversation, 
       content, 
       updateActiveConversation,
-      configuration
+      messageOptions.systemPrompt ? messageOptions : { modelConfig: configuration }
     );
     
     // Update the active conversation state with the final result

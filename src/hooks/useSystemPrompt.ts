@@ -52,7 +52,12 @@ export const useSystemPrompt = (): UseSystemPromptReturn => {
   }, []);
 
   const applySystemPromptToConversation = useCallback((conversation: Conversation): Conversation => {
+    console.log('🔍 useSystemPrompt: applySystemPromptToConversation called');
+    console.log('🔍 useSystemPrompt: selectedPrompt:', selectedPrompt);
+    console.log('🔍 useSystemPrompt: conversation messages before:', conversation.messages.length);
+    
     if (!selectedPrompt?.latestVersion?.text) {
+      console.log('🔍 useSystemPrompt: No selected prompt or text, returning original conversation');
       return conversation;
     }
 
@@ -62,20 +67,29 @@ export const useSystemPrompt = (): UseSystemPromptReturn => {
       timestamp: new Date(),
       role: 'system'
     };
+    
+    console.log('🔍 useSystemPrompt: Created system message:', systemMessage);
 
     // If there's already a system prompt at position 0, replace it
     const messages = [...conversation.messages];
     if (hasSystemPrompt(conversation)) {
+      console.log('🔍 useSystemPrompt: Replacing existing system prompt');
       messages[0] = systemMessage;
     } else {
+      console.log('🔍 useSystemPrompt: Adding new system prompt at position 0');
       // Insert at the beginning
       messages.unshift(systemMessage);
     }
 
-    return {
+    const updatedConversation = {
       ...conversation,
       messages
     };
+    
+    console.log('🔍 useSystemPrompt: Updated conversation messages:', updatedConversation.messages.length);
+    console.log('🔍 useSystemPrompt: System messages in result:', updatedConversation.messages.filter(m => m.role === 'system').length);
+    
+    return updatedConversation;
   }, [selectedPrompt, hasSystemPrompt]);
 
   const extractSystemPromptFromConversation = useCallback((conversation: Conversation): SavedPromptSummary | null => {

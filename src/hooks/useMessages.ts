@@ -5,18 +5,18 @@
 
 import { useState, useCallback } from 'react';
 import { Conversation, Message, ModelConfiguration } from '@/types';
-import { conversationService } from '@/services/conversationService';
+import { conversationService, SendMessageOptions } from '@/services/conversationService';
 import { toast } from 'react-toastify';
 
 interface UseMessagesReturn {
   sendingMessage: boolean;
   aiThinking: boolean;
-  sendMessage: (conversationId: string, content: string, modelConfig?: ModelConfiguration) => Promise<Conversation | null>;
+  sendMessage: (conversationId: string, content: string, options?: SendMessageOptions) => Promise<Conversation | null>;
   sendMessageOptimistic: (
     conversation: Conversation, 
     content: string, 
     onOptimisticUpdate: (updatedConversation: Conversation) => void,
-    modelConfig?: ModelConfiguration
+    options?: SendMessageOptions
   ) => Promise<Conversation | null>;
   error: string | null;
   clearError: () => void;
@@ -34,7 +34,7 @@ export const useMessages = (): UseMessagesReturn => {
   const sendMessage = useCallback(async (
     conversationId: string, 
     content: string, 
-    modelConfig?: ModelConfiguration
+    options?: SendMessageOptions
   ): Promise<Conversation | null> => {
     if (!conversationId || !content.trim()) {
       toast.error('Conversation ID and message content are required');
@@ -51,7 +51,7 @@ export const useMessages = (): UseMessagesReturn => {
         conversationId, 
         content, 
         'user',
-        modelConfig ? { modelConfig } : undefined
+        options
       );
       
       return updatedConversation;
@@ -73,12 +73,16 @@ export const useMessages = (): UseMessagesReturn => {
     conversation: Conversation,
     content: string,
     onOptimisticUpdate: (updatedConversation: Conversation) => void,
-    modelConfig?: ModelConfiguration
+    options?: SendMessageOptions
   ): Promise<Conversation | null> => {
     if (!conversation._id || !content.trim()) {
       toast.error('Conversation and message content are required');
       return null;
     }
+
+    console.log('🔍 useMessages: sendMessageOptimistic called');
+    console.log('🔍 useMessages: conversation messages before sending:', conversation.messages.length);
+    console.log('🔍 useMessages: system messages in conversation:', conversation.messages.filter(m => m.role === 'system').length);
 
     try {
       setError(null);
@@ -91,15 +95,6 @@ export const useMessages = (): UseMessagesReturn => {
         role: 'user'
       };
 
-      const optimisticConversation: Conversation = {
-        ...conversation,
-        messages: [...conversation.messages, userMessage],
-        updatedAt: new Date()
-      };
-
-      // Update UI immediately with user message
-      onOptimisticUpdate(optimisticConversation);
-
       // 2. Show AI thinking state
       setAiThinking(true);
       
@@ -111,23 +106,24 @@ export const useMessages = (): UseMessagesReturn => {
         role: 'assistant'
       };
 
-      const thinkingConversation: Conversation = {
-        ...optimisticConversation,
-        messages: [...optimisticConversation.messages, thinkingMessage],
+      const optimisticConversation: Conversation = {
+        ...conversation,
+        messages: [...conversation.messages, userMessage, thinkingMessage],
         updatedAt: new Date()
       };
 
-      // Update UI with thinking indicator
-      onOptimisticUpdate(thinkingConversation);
+      // Update UI immediately with user message
+      onOptimisticUpdate(optimisticConversation);
 
       // 3. Send to server and get AI response
       const updatedConversation = await conversationService.sendMessage(
         conversation._id, 
         content, 
         'user',
-        modelConfig ? { modelConfig } : undefined
+        options
       );
       
+      console.log('🔍 useMessages: Received response from server');
       return updatedConversation;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';

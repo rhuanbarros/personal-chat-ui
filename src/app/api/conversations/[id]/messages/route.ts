@@ -15,7 +15,7 @@ export async function POST(
     
     const { id } = await params;
     const body = await request.json();
-    const { content, sender, modelConfig } = body;
+    const { content, sender, modelConfig, systemPrompt } = body;
 
     const missingFields = validateRequiredFields(body, ['content', 'sender']);
     if (missingFields.length > 0) {
@@ -32,6 +32,22 @@ export async function POST(
         createApiResponse(false, undefined, 'Conversation not found'),
         { status: 404 }
       );
+    }
+
+    console.log('🔍 API: Received message request');
+    console.log('🔍 API: systemPrompt provided:', !!systemPrompt);
+    console.log('🔍 API: conversation messages before:', conversation.messages.length);
+
+    // Add system prompt if provided and not already present
+    if (systemPrompt && !conversation.messages.some((m: Message) => m.role === 'system')) {
+      console.log('🔍 API: Adding system prompt to conversation');
+      const systemMessage = {
+        sender: 'ai',
+        content: systemPrompt,
+        timestamp: new Date(),
+        role: 'system'
+      };
+      conversation.messages.unshift(systemMessage); // Add at beginning
     }
 
     // Add user message
@@ -58,6 +74,10 @@ export async function POST(
             }
             return `${msg.sender}: ${msg.content}`;
           });
+        
+        console.log('🔍 Full conversation messages:', conversation.messages.length);
+        console.log('🔍 Context messages being sent to AI:', conversationContext);
+        console.log('🔍 System messages in conversation:', conversation.messages.filter((m: Message) => m.role === 'system').length);
         
         // Prepare AI service configuration override if provided
         let aiConfigOverride: Partial<AIServiceConfig> | undefined;

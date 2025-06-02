@@ -1,0 +1,1 @@
+enviar imagens colando no chat

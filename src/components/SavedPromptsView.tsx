@@ -53,6 +53,8 @@ const SavedPromptsView: React.FC = () => {
   const handleUpdatePrompt = async (id: string, name: string) => {
     try {
       await updateSavedPrompt(id, { name });
+      // Refresh the list to show updated data including latest versions
+      await fetchSavedPrompts(pagination.currentPage);
       setEditingPrompt(null);
     } catch (error) {
       // Error is handled by the hook

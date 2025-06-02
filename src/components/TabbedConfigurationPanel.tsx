@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ModelConfiguration, ConfigurationTabType, TabConfiguration } from '@/types';
 import { useModelConfiguration } from '@/hooks/useModelConfiguration';
 import { useSavedPrompts } from '@/hooks/useSavedPrompts';
+import { useSystemPrompt } from '@/hooks/useSystemPrompt';
 import { SavedPromptSummary } from '@/services/savedPromptService';
-import { Plus, Edit, Copy } from 'lucide-react';
+import { Plus, Edit, Copy, Check } from 'lucide-react';
 import CreatePromptModal from './CreatePromptModal';
 import EditPromptModal from './EditPromptModal';
 
@@ -24,6 +25,7 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
     updateSavedPrompt,
     fetchSavedPrompts 
   } = useSavedPrompts();
+  const { selectedPrompt, selectPrompt } = useSystemPrompt();
   
   const [selectedProvider, setSelectedProvider] = useState(configuration.provider);
   const [availableModelsForProvider, setAvailableModelsForProvider] = useState(
@@ -112,7 +114,7 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
   const renderSavedPromptsSection = () => (
     <div className="mb-6">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-700">Saved prompts</h3>
+        <h3 className="text-sm font-medium text-gray-700">System prompts</h3>
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="text-blue-600 hover:text-blue-700 transition-colors"
@@ -129,6 +131,25 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
           <div className="p-4 text-center text-gray-500 text-sm">No saved prompts yet</div>
         ) : (
           <div className="p-2">
+            {/* None option */}
+            <div className="relative group">
+              <div 
+                className={`flex items-center justify-between p-2 rounded transition-colors cursor-pointer ${
+                  !selectedPrompt ? 'bg-blue-100 border border-blue-300' : 'hover:bg-white'
+                }`}
+                onClick={() => selectPrompt(null)}
+              >
+                <span className={`text-sm truncate flex-1 ${
+                  !selectedPrompt ? 'text-blue-700 font-medium' : 'text-gray-800'
+                }`}>
+                  None (no system prompt)
+                </span>
+                {!selectedPrompt && (
+                  <Check size={14} className="text-blue-600 ml-2" />
+                )}
+              </div>
+            </div>
+            
             {savedPrompts.map((prompt) => (
               <div
                 key={prompt._id}
@@ -136,30 +157,50 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
                 onMouseEnter={() => setHoveredPrompt(prompt._id)}
                 onMouseLeave={() => setHoveredPrompt(null)}
               >
-                <div className="flex items-center justify-between p-2 hover:bg-white rounded transition-colors">
+                <div 
+                  className={`flex items-center justify-between p-2 rounded transition-colors cursor-pointer ${
+                    selectedPrompt?._id === prompt._id ? 'bg-blue-100 border border-blue-300' : 'hover:bg-white'
+                  }`}
+                  onClick={() => selectPrompt(prompt)}
+                >
                   <span 
-                    className="text-sm text-gray-800 truncate flex-1 cursor-pointer"
-                    title="Click to view prompt content"
+                    className={`text-sm truncate flex-1 ${
+                      selectedPrompt?._id === prompt._id ? 'text-blue-700 font-medium' : 'text-gray-800'
+                    }`}
+                    title="Click to select as system prompt"
                   >
                     {prompt.name}
                   </span>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {prompt.latestVersion && (
-                      <button
-                        onClick={() => handleCopyPrompt(prompt.latestVersion!.text)}
-                        className="text-gray-400 hover:text-blue-600 transition-colors"
-                        title="Copy prompt"
-                      >
-                        <Copy size={14} />
-                      </button>
+                  <div className="flex items-center gap-1">
+                    {selectedPrompt?._id === prompt._id && (
+                      <Check size={14} className="text-blue-600" />
                     )}
-                    <button
-                      onClick={() => setEditingPrompt(prompt)}
-                      className="text-gray-400 hover:text-blue-600 transition-colors"
-                      title="Edit prompt"
-                    >
-                      <Edit size={14} />
-                    </button>
+                    <div className={`flex items-center gap-1 transition-opacity ${
+                      selectedPrompt?._id === prompt._id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}>
+                      {prompt.latestVersion && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyPrompt(prompt.latestVersion!.text);
+                          }}
+                          className="text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Copy prompt"
+                        >
+                          <Copy size={14} />
+                        </button>
+                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingPrompt(prompt);
+                        }}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                        title="Edit prompt"
+                      >
+                        <Edit size={14} />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 
@@ -180,6 +221,14 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
           </div>
         )}
       </div>
+      
+      {/* Show selected prompt info */}
+      {selectedPrompt && (
+        <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+          <span className="font-medium text-blue-700">Selected: </span>
+          <span className="text-blue-600">{selectedPrompt.name}</span>
+        </div>
+      )}
     </div>
   );
 

@@ -22,6 +22,11 @@ const MessageSchema: Schema = new Schema({
     type: Date,
     default: Date.now,
     required: true
+  },
+  role: {
+    type: String,
+    enum: ['system', 'user', 'assistant'],
+    required: false
   }
 });
 

@@ -122,7 +122,7 @@ class AIService {
   /**
    * Build messages array from user message and conversation context
    * @param userMessage - Current user message
-   * @param conversationContext - Previous conversation messages
+   * @param conversationContext - Previous conversation messages  
    * @returns Array of message objects
    */
   private buildMessagesArray(userMessage: string, conversationContext?: string[]): Array<{ [key: string]: any }> {
@@ -131,12 +131,27 @@ class AIService {
     // Add conversation context if available
     if (conversationContext && conversationContext.length > 0) {
       conversationContext.forEach(contextMessage => {
-        const [sender, content] = contextMessage.split(': ', 2);
-        if (sender && content) {
+        // Enhanced parsing to handle role-based messages
+        if (contextMessage.startsWith('system: ')) {
           messages.push({
-            role: sender === 'user' ? 'user' : 'assistant',
-            content: content.trim()
+            role: 'system',
+            content: contextMessage.substring(8).trim()
           });
+        } else {
+          const [sender, content] = contextMessage.split(': ', 2);
+          if (sender && content) {
+            let role = 'user';
+            if (sender === 'ai') {
+              role = 'assistant';
+            } else if (sender === 'system') {
+              role = 'system';
+            }
+            
+            messages.push({
+              role: role,
+              content: content.trim()
+            });
+          }
         }
       });
     }

@@ -6,6 +6,7 @@ import ChatView from '@/components/ChatView';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { useModelConfiguration } from '@/hooks/useModelConfiguration';
+import { useSystemPrompt } from '@/hooks/useSystemPrompt';
 
 export default function ConversationPage() {
   const params = useParams();
@@ -26,6 +27,13 @@ export default function ConversationPage() {
   } = useMessages();
 
   const { configuration } = useModelConfiguration();
+  const { 
+    selectedPrompt, 
+    selectPrompt, 
+    applySystemPromptToConversation, 
+    extractSystemPromptFromConversation,
+    hasSystemPrompt 
+  } = useSystemPrompt();
 
   useEffect(() => {
     if (conversationId) {
@@ -33,14 +41,36 @@ export default function ConversationPage() {
     }
   }, [conversationId, selectConversation]);
 
+  // When activeConversation changes, check if it has a system prompt and update selection
+  useEffect(() => {
+    if (activeConversation && activeConversation.messages.length > 0) {
+      if (hasSystemPrompt(activeConversation)) {
+        // Extract system prompt from conversation and update selection
+        const extractedPrompt = extractSystemPromptFromConversation(activeConversation);
+        if (extractedPrompt && (!selectedPrompt || selectedPrompt._id === 'current-system')) {
+          // Only auto-select if no prompt is selected or if showing current system prompt
+          selectPrompt(extractedPrompt);
+        }
+      }
+    }
+  }, [activeConversation, hasSystemPrompt, extractSystemPromptFromConversation, selectedPrompt, selectPrompt]);
+
   const handleSendMessage = async (content: string) => {
     if (!activeConversation) {
       return;
     }
 
+    // Apply system prompt to conversation before sending
+    let conversationToSend = activeConversation;
+    if (selectedPrompt) {
+      conversationToSend = applySystemPromptToConversation(activeConversation);
+      // Update the active conversation to show the system prompt immediately
+      updateActiveConversation(conversationToSend);
+    }
+
     // Use optimistic updates for better UX
     const updatedConversation = await sendMessageOptimistic(
-      activeConversation, 
+      conversationToSend, 
       content, 
       updateActiveConversation,
       configuration

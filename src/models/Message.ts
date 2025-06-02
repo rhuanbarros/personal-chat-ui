@@ -4,6 +4,7 @@ export interface IMessage extends Document {
   sender: 'user' | 'ai';
   content: string;
   timestamp: Date;
+  role?: 'system' | 'user' | 'assistant';
 }
 
 const MessageSchema: Schema = new Schema({
@@ -20,6 +21,11 @@ const MessageSchema: Schema = new Schema({
     type: Date,
     default: Date.now,
     required: true
+  },
+  role: {
+    type: String,
+    enum: ['system', 'user', 'assistant'],
+    required: false
   }
 });
 

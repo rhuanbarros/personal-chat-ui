@@ -38,7 +38,8 @@ export async function POST(
     const userMessage = {
       sender,
       content,
-      timestamp: new Date()
+      timestamp: new Date(),
+      role: sender === 'user' ? 'user' : (sender === 'ai' ? 'assistant' : undefined)
     };
 
     conversation.messages.push(userMessage);
@@ -49,8 +50,14 @@ export async function POST(
       try {
         // Get conversation context for better AI responses
         const conversationContext = conversation.messages
-          .slice(-5) // Get last 5 messages for context
-          .map((msg: Message) => `${msg.sender}: ${msg.content}`);
+          .slice(-10) // Get last 10 messages for context (increased to include more context)
+          .map((msg: Message) => {
+            // Handle system messages properly
+            if (msg.role === 'system') {
+              return `system: ${msg.content}`;
+            }
+            return `${msg.sender}: ${msg.content}`;
+          });
         
         // Prepare AI service configuration override if provided
         let aiConfigOverride: Partial<AIServiceConfig> | undefined;
@@ -68,7 +75,8 @@ export async function POST(
         const aiMessage = {
           sender: 'ai' as const,
           content: aiResponse,
-          timestamp: new Date()
+          timestamp: new Date(),
+          role: 'assistant' as const
         };
         conversation.messages.push(aiMessage);
       } catch (aiError) {
@@ -78,7 +86,8 @@ export async function POST(
         const errorMessage = {
           sender: 'ai' as const,
           content: `❌ **AI Error**: ${aiError instanceof Error ? aiError.message : 'Unknown AI service error'}`,
-          timestamp: new Date()
+          timestamp: new Date(),
+          role: 'assistant' as const
         };
         conversation.messages.push(errorMessage);
       }

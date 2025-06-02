@@ -163,12 +163,14 @@ const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-        {conversation.messages.length === 0 ? (
+        {conversation.messages.filter(msg => msg.role !== 'system').length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
-          conversation.messages.map((msg, index) => (
+          conversation.messages
+            .filter(msg => msg.role !== 'system') // Filter out system messages from display
+            .map((msg, index) => (
             <div
               key={index}
               className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}

@@ -87,7 +87,8 @@ export const useMessages = (): UseMessagesReturn => {
       const userMessage: Message = {
         sender: 'user',
         content: content.trim(),
-        timestamp: new Date()
+        timestamp: new Date(),
+        role: 'user'
       };
 
       const optimisticConversation: Conversation = {
@@ -106,7 +107,8 @@ export const useMessages = (): UseMessagesReturn => {
       const thinkingMessage: Message = {
         sender: 'ai',
         content: '...',
-        timestamp: new Date()
+        timestamp: new Date(),
+        role: 'assistant'
       };
 
       const thinkingConversation: Conversation = {
@@ -136,7 +138,8 @@ export const useMessages = (): UseMessagesReturn => {
       const errorMessage_ai: Message = {
         sender: 'ai',
         content: `❌ **Error**: ${errorMessage}`,
-        timestamp: new Date()
+        timestamp: new Date(),
+        role: 'assistant'
       };
 
       const errorConversation: Conversation = {
@@ -145,7 +148,8 @@ export const useMessages = (): UseMessagesReturn => {
           {
             sender: 'user',
             content: content.trim(),
-            timestamp: new Date()
+            timestamp: new Date(),
+            role: 'user'
           },
           errorMessage_ai
         ],

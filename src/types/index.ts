@@ -4,6 +4,7 @@ export interface Message {
   sender: 'user' | 'ai';
   content: string;
   timestamp: Date;
+  role?: 'system' | 'user' | 'assistant'; // Optional role field for system prompts
 }
 
 // Conversation types

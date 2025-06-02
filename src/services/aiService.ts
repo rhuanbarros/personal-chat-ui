@@ -1,288 +1,153 @@
 /**
  * AI Service
- * Handles AI response generation and related functionality
+ * Handles AI response generation by calling the Python backend API
  */
-
-import { GoogleGenAI } from '@google/genai';
-import OpenAI from "openai";
 
 export interface AIServiceConfig {
   responseDelay?: number;
   provider?: 'openai' | 'google';
   model?: string;
-  apiKey?: string;
   temperature?: number;
   topP?: number;
   maxOutputTokens?: number;
-  store?: boolean;
+  backendUrl?: string;
+}
+
+interface InvokeRequest {
+  messages: Array<{ [key: string]: any }>;
+  temperature?: number;
+  top_p?: number;
+  model_name?: string;
+  model_provider?: string;
+}
+
+interface InvokeResponse {
+  response: string;
 }
 
 class AIService {
   private config: AIServiceConfig;
-  private genAI: GoogleGenAI | null = null;
-  private openAI: OpenAI | null = null;
+  private backendUrl: string;
 
   constructor(config: AIServiceConfig = {}) {
     this.config = {
       responseDelay: 0,
       provider: 'google',
-      model: 'gemini-2.0-flash-lite',
+      model: 'gemini-2.0-flash',
       temperature: 0.7,
-      topP: 0.9,
+      topP: 1.0,
       maxOutputTokens: 2048,
-      store: true,
       ...config
     };
     
-    this.initializeClients();
-  }
-
-  /**
-   * Initialize AI clients based on provider
-   * @private
-   */
-  private initializeClients(): void {
-    if (this.config.provider === 'google') {
-      this.initializeGenAI();
-    } else if (this.config.provider === 'openai') {
-      this.initializeOpenAI();
-    }
-  }
-
-  /**
-   * Initialize Google GenAI client
-   * @private
-   */
-  private initializeGenAI(): void {
-    const apiKey = this.config.apiKey || process.env.GEMINI_API_KEY;
+    // Get backend URL from environment variable or config
+    this.backendUrl = this.config.backendUrl || process.env.AI_BACKEND || 'http://localhost:8000';
     
-    if (!apiKey) {
-      console.error('❌ GEMINI_API_KEY not found. AI service requires a valid API key to function.');
-      return;
-    }
-
-    try {
-      this.genAI = new GoogleGenAI({
-        apiKey: apiKey,
-      });
-      console.log('✅ Gemini client initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize Google GenAI:', error);
-      this.genAI = null;
-    }
+    console.log('✅ AI Service initialized with backend URL:', this.backendUrl);
   }
 
   /**
-   * Initialize OpenAI client
-   * @private
-   */
-  private initializeOpenAI(): void {
-    const apiKey = this.config.apiKey || process.env.OPENAI_API_KEY;
-    
-    if (!apiKey) {
-      console.error('❌ OPENAI_API_KEY not found. AI service requires a valid API key to function.');
-      return;
-    }
-
-    try {
-      this.openAI = new OpenAI({
-        apiKey: apiKey,
-      });
-      console.log('✅ OpenAI client initialized successfully');
-    } catch (error) {
-      console.error('Failed to initialize OpenAI:', error);
-      this.openAI = null;
-    }
-  }
-
-  /**
-   * Generate AI response based on user message
+   * Generate AI response by calling the Python backend API
    * @param userMessage - The user's input message
    * @param conversationContext - Optional conversation context for better responses
    * @param overrideConfig - Optional configuration overrides for this specific request
    * @returns Promise with AI generated response
-   * @throws Error if no valid AI provider is available or configured
+   * @throws Error if the backend API fails
    */
   async getAIResponse(
     userMessage: string, 
     conversationContext?: string[], 
     overrideConfig?: Partial<AIServiceConfig>
   ): Promise<string> {
-    const effectiveConfig = { ...this.config, ...overrideConfig };
-    
-    switch (effectiveConfig.provider) {
-      case 'google':
-        if (this.genAI) {
-          return this.generateGeminiResponse(userMessage, conversationContext, overrideConfig);
-        } else {
-          const error = new Error('Gemini AI client is not available. Please check your GEMINI_API_KEY environment variable.');
-          console.error('❌ AI Service Error:', error.message);
-          throw error;
-        }
-      case 'openai':
-        if (this.openAI) {
-          return this.generateOpenAIResponse(userMessage, conversationContext, overrideConfig);
-        } else {
-          const error = new Error('OpenAI client is not available. Please check your OPENAI_API_KEY environment variable.');
-          console.error('❌ AI Service Error:', error.message);
-          throw error;
-        }
-      default:
-        const error = new Error(`Unknown AI provider: ${effectiveConfig.provider}. Please use 'google' or 'openai'.`);
-        console.error('❌ AI Service Error:', error.message);
-        throw error;
-    }
-  }
-
-  /**
-   * Generate response using OpenAI
-   * @param userMessage - The user's message
-   * @param conversationContext - Previous messages for context
-   * @param overrideConfig - Optional configuration overrides
-   * @returns Promise with AI response
-   * @throws Error if OpenAI API fails
-   */
-  private async generateOpenAIResponse(
-    userMessage: string, 
-    conversationContext?: string[], 
-    overrideConfig?: Partial<AIServiceConfig>
-  ): Promise<string> {
     try {
-      if (!this.openAI) {
-        throw new Error('OpenAI client not initialized');
-      }
-
-      // Merge current config with any overrides
       const effectiveConfig = { ...this.config, ...overrideConfig };
-
-      // Build conversation messages for OpenAI format
-      const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
       
-      // Add conversation context if available
-      if (conversationContext && conversationContext.length > 0) {
-        conversationContext.forEach(contextMessage => {
-          const [sender, content] = contextMessage.split(': ', 2);
-          if (sender && content) {
-            messages.push({
-              role: sender === 'user' ? 'user' : 'assistant',
-              content: content
-            });
-          }
-        });
-      }
+      // Convert conversation context to messages format
+      const messages = this.buildMessagesArray(userMessage, conversationContext);
       
-      // Add current user message
-      messages.push({
-        role: 'user',
-        content: userMessage
-      });
-
-      // Check if the model supports reasoning (o3, o1, etc.)
-      const modelName = effectiveConfig.model || 'gpt-4.1';
-      const isReasoningModel = modelName.includes('o1') || modelName.includes('o3');
-
-      let response;
-
-      if (isReasoningModel) {
-        // Use reasoning endpoint for reasoning models
-        response = await this.openAI.chat.completions.create({
-          model: modelName,
-          messages: messages,
-          temperature: effectiveConfig.temperature || 1,
-          max_completion_tokens: effectiveConfig.maxOutputTokens || 2048,
-          top_p: effectiveConfig.topP || 1,
-          store: effectiveConfig.store || true
-        });
-      } else {
-        // Use standard chat completions for regular models
-        response = await this.openAI.chat.completions.create({
-          model: modelName,
-          messages: messages,
-          temperature: effectiveConfig.temperature || 0.7,
-          max_tokens: effectiveConfig.maxOutputTokens || 2048,
-          top_p: effectiveConfig.topP || 1,
-        });
-      }
-
-      const content = response.choices[0]?.message?.content;
-      if (!content?.trim()) {
-        throw new Error('OpenAI returned an empty response');
-      }
-      return content.trim();
-    } catch (error) {
-      console.error('❌ Error generating OpenAI response:', error);
-      throw new Error(`OpenAI API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  /**
-   * Generate response using Gemini LLM
-   * @param userMessage - The user's message
-   * @param conversationContext - Previous messages for context
-   * @param overrideConfig - Optional configuration overrides
-   * @returns Promise with AI response
-   * @throws Error if Gemini API fails
-   */
-  private async generateGeminiResponse(
-    userMessage: string, 
-    conversationContext?: string[], 
-    overrideConfig?: Partial<AIServiceConfig>
-  ): Promise<string> {
-    try {
-      if (!this.genAI) {
-        throw new Error('Gemini client not initialized');
-      }
-
-      // Merge current config with any overrides
-      const effectiveConfig = { ...this.config, ...overrideConfig };
-
-      const config = {
-        responseMimeType: 'text/plain',
-        temperature: effectiveConfig.temperature || 0.7,
-        topP: effectiveConfig.topP || 0.9,
+      // Prepare request payload
+      const requestPayload: InvokeRequest = {
+        messages,
+        temperature: effectiveConfig.temperature,
+        top_p: effectiveConfig.topP,
+        model_name: effectiveConfig.model,
+        model_provider: effectiveConfig.provider
       };
 
-      // Build conversation context for better responses
-      let contextPrompt = '';
-      if (conversationContext && conversationContext.length > 0) {
-        contextPrompt = 'Previous conversation context:\n' + conversationContext.join('\n') + '\n\n';
-      }
-
-      const fullPrompt = contextPrompt + 'User: ' + userMessage;
-
-      const contents = [
-        {
-          role: 'user' as const,
-          parts: [
-            {
-              text: fullPrompt,
-            },
-          ],
-        },
-      ];
-
-      const response = await this.genAI.models.generateContentStream({
-        model: effectiveConfig.model || 'gemini-2.0-flash-lite',
-        config,
-        contents,
+      console.log('🚀 Calling AI backend with:', {
+        url: `${this.backendUrl}/invoke_agent`,
+        model: requestPayload.model_name,
+        provider: requestPayload.model_provider
       });
 
-      // Accumulate the streaming response
-      let fullResponse = '';
-      for await (const chunk of response) {
-        if (chunk.text) {
-          fullResponse += chunk.text;
-        }
+      // Add artificial delay if configured
+      if (effectiveConfig.responseDelay && effectiveConfig.responseDelay > 0) {
+        await new Promise(resolve => setTimeout(resolve, effectiveConfig.responseDelay));
       }
 
-      if (!fullResponse.trim()) {
-        throw new Error('Gemini returned an empty response');
+      // Make HTTP request to Python backend
+      const response = await fetch(`${this.backendUrl}/invoke_agent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestPayload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Backend API error (${response.status}): ${errorText}`);
       }
-      return fullResponse.trim();
+
+      const data: InvokeResponse = await response.json();
+      
+      if (!data.response?.trim()) {
+        throw new Error('Backend returned an empty response');
+      }
+
+      console.log('✅ Received response from AI backend');
+      return data.response.trim();
+
     } catch (error) {
-      console.error('❌ Error generating Gemini response:', error);
-      throw new Error(`Gemini API error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Error calling AI backend:', error);
+      
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        throw new Error(`Failed to connect to AI backend at ${this.backendUrl}. Please check if the backend is running and the AI_BACKEND environment variable is set correctly.`);
+      }
+      
+      throw new Error(`AI backend error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Build messages array from user message and conversation context
+   * @param userMessage - Current user message
+   * @param conversationContext - Previous conversation messages
+   * @returns Array of message objects
+   */
+  private buildMessagesArray(userMessage: string, conversationContext?: string[]): Array<{ [key: string]: any }> {
+    const messages: Array<{ [key: string]: any }> = [];
+    
+    // Add conversation context if available
+    if (conversationContext && conversationContext.length > 0) {
+      conversationContext.forEach(contextMessage => {
+        const [sender, content] = contextMessage.split(': ', 2);
+        if (sender && content) {
+          messages.push({
+            role: sender === 'user' ? 'user' : 'assistant',
+            content: content.trim()
+          });
+        }
+      });
+    }
+    
+    // Add current user message
+    messages.push({
+      role: 'user',
+      content: userMessage
+    });
+
+    return messages;
   }
 
   /**
@@ -292,9 +157,10 @@ class AIService {
   updateConfig(newConfig: Partial<AIServiceConfig>): void {
     this.config = { ...this.config, ...newConfig };
     
-    // Reinitialize clients if API key or provider changed
-    if (newConfig.apiKey || newConfig.provider) {
-      this.initializeClients();
+    // Update backend URL if provided
+    if (newConfig.backendUrl) {
+      this.backendUrl = newConfig.backendUrl;
+      console.log('🔄 Backend URL updated to:', this.backendUrl);
     }
   }
 
@@ -307,33 +173,42 @@ class AIService {
   }
 
   /**
-   * Check if Gemini is properly configured and available
-   * @returns True if Gemini is available, false otherwise
+   * Get the current backend URL
+   * @returns The backend URL being used
    */
-  isGeminiAvailable(): boolean {
-    return this.genAI !== null && this.config.provider === 'google';
+  getBackendUrl(): string {
+    return this.backendUrl;
   }
 
   /**
-   * Check if OpenAI is properly configured and available
-   * @returns True if OpenAI is available, false otherwise
+   * Check if the backend is available by making a health check
+   * @returns Promise that resolves to true if backend is available
    */
-  isOpenAIAvailable(): boolean {
-    return this.openAI !== null && this.config.provider === 'openai';
+  async isBackendAvailable(): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.backendUrl}/health`, {
+        method: 'GET',
+        timeout: 5000
+      } as RequestInit);
+      return response.ok;
+    } catch (error) {
+      console.warn('⚠️ Backend health check failed:', error);
+      return false;
+    }
   }
 
   /**
-   * Check if the current provider is properly configured and available
-   * @returns True if the current provider is available, false otherwise
+   * Test the backend connection with a simple request
+   * @returns Promise that resolves to true if connection is successful
    */
-  isProviderAvailable(): boolean {
-    switch (this.config.provider) {
-      case 'google':
-        return this.isGeminiAvailable();
-      case 'openai':
-        return this.isOpenAIAvailable();
-      default:
-        return false;
+  async testConnection(): Promise<boolean> {
+    try {
+      const testMessage = "Hello";
+      await this.getAIResponse(testMessage);
+      return true;
+    } catch (error) {
+      console.error('❌ Backend connection test failed:', error);
+      return false;
     }
   }
 }

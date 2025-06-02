@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Settings } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
-import ConfigurationPanel from '@/components/ConfigurationPanel';
+import TabbedConfigurationPanel from '@/components/TabbedConfigurationPanel';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { useModelConfiguration } from '@/hooks/useModelConfiguration';
@@ -105,7 +105,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         {children}
       </main>
       {shouldShowConfigPanel && (
-        <ConfigurationPanel
+        <TabbedConfigurationPanel
           configuration={configuration}
           onConfigurationChange={updateConfiguration}
         />

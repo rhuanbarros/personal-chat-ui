@@ -24,6 +24,23 @@ export interface ModelConfiguration {
   renderMarkdown: boolean;
 }
 
+// Agent Configuration types (placeholder for future implementation)
+export interface AgentConfiguration {
+  agentId: string;
+  agentName: string;
+  endpoint: string;
+  parameters: Record<string, any>;
+}
+
+// Tab Configuration types
+export type ConfigurationTabType = 'simple-models' | 'agents';
+
+export interface TabConfiguration {
+  activeTab: ConfigurationTabType;
+  modelConfig: ModelConfiguration;
+  agentConfig?: AgentConfiguration;
+}
+
 // API Response types
 export interface ApiResponse<T = any> {
   success: boolean;

@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ModelConfiguration, ConfigurationTabType, TabConfiguration } from '@/types';
 import { useModelConfiguration } from '@/hooks/useModelConfiguration';
+import { useSavedPrompts } from '@/hooks/useSavedPrompts';
+import { SavedPromptSummary } from '@/services/savedPromptService';
+import { Plus, Edit, Copy } from 'lucide-react';
+import CreatePromptModal from './CreatePromptModal';
+import EditPromptModal from './EditPromptModal';
 
 interface TabbedConfigurationPanelProps {
   configuration: ModelConfiguration;
@@ -12,12 +17,23 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
   onConfigurationChange
 }) => {
   const { availableProviders, getModelsByProvider, loading } = useModelConfiguration();
+  const { 
+    savedPrompts, 
+    loading: promptsLoading, 
+    createSavedPrompt, 
+    updateSavedPrompt,
+    fetchSavedPrompts 
+  } = useSavedPrompts();
+  
   const [selectedProvider, setSelectedProvider] = useState(configuration.provider);
   const [availableModelsForProvider, setAvailableModelsForProvider] = useState(
     getModelsByProvider(configuration.provider)
   );
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState<ConfigurationTabType>('simple-models');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState<SavedPromptSummary | null>(null);
+  const [hoveredPrompt, setHoveredPrompt] = useState<string | null>(null);
 
   // Track if we're on the client to avoid hydration mismatches
   useEffect(() => {
@@ -66,6 +82,106 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
       onConfigurationChange(newConfig);
     }
   }, [selectedProvider, configuration, onConfigurationChange]);
+
+  const handleCreatePrompt = async (name: string, text: string) => {
+    try {
+      await createSavedPrompt({ name, text });
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      // Error is handled by the hook
+    }
+  };
+
+  const handleUpdatePrompt = async (id: string, name: string, text?: string) => {
+    try {
+      await updateSavedPrompt(id, { name });
+      if (text) {
+        // Refresh to get the latest data
+        await fetchSavedPrompts(1);
+      }
+      setEditingPrompt(null);
+    } catch (error) {
+      // Error is handled by the hook
+    }
+  };
+
+  const handleCopyPrompt = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  const renderSavedPromptsSection = () => (
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium text-gray-700">Saved prompts</h3>
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="text-blue-600 hover:text-blue-700 transition-colors"
+          title="Create new prompt"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+      
+      <div className="border border-gray-200 rounded-lg bg-gray-50 max-h-48 overflow-y-auto">
+        {promptsLoading ? (
+          <div className="p-4 text-center text-gray-500 text-sm">Loading prompts...</div>
+        ) : savedPrompts.length === 0 ? (
+          <div className="p-4 text-center text-gray-500 text-sm">No saved prompts yet</div>
+        ) : (
+          <div className="p-2">
+            {savedPrompts.map((prompt) => (
+              <div
+                key={prompt._id}
+                className="relative group"
+                onMouseEnter={() => setHoveredPrompt(prompt._id)}
+                onMouseLeave={() => setHoveredPrompt(null)}
+              >
+                <div className="flex items-center justify-between p-2 hover:bg-white rounded transition-colors">
+                  <span 
+                    className="text-sm text-gray-800 truncate flex-1 cursor-pointer"
+                    title="Click to view prompt content"
+                  >
+                    {prompt.name}
+                  </span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {prompt.latestVersion && (
+                      <button
+                        onClick={() => handleCopyPrompt(prompt.latestVersion!.text)}
+                        className="text-gray-400 hover:text-blue-600 transition-colors"
+                        title="Copy prompt"
+                      >
+                        <Copy size={14} />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setEditingPrompt(prompt)}
+                      className="text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Edit prompt"
+                    >
+                      <Edit size={14} />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Tooltip with prompt content */}
+                {hoveredPrompt === prompt._id && prompt.latestVersion && (
+                  <div className="absolute right-full top-0 mr-2 z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3 max-w-xs w-64">
+                    <div className="text-xs font-medium text-gray-700 mb-1">{prompt.name}</div>
+                    <div className="text-xs text-gray-600 line-clamp-6 whitespace-pre-wrap">
+                      {prompt.latestVersion.text}
+                    </div>
+                    {prompt.latestVersion.text.length > 200 && (
+                      <div className="text-xs text-gray-400 mt-1">...</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   const renderSimpleModelsTab = () => (
     <div className="space-y-6">
@@ -219,6 +335,11 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
       <div className="p-6 flex flex-col h-full">
         <h2 className="text-lg font-semibold text-gray-800 mb-6 flex-shrink-0">CONFIGURATION</h2>
         
+        {/* Saved Prompts Section */}
+        <div className="flex-shrink-0 mb-6">
+          {renderSavedPromptsSection()}
+        </div>
+        
         {/* Tab Navigation */}
         <div className="flex mb-6 border-b border-gray-200 flex-shrink-0">
           <button
@@ -248,6 +369,24 @@ const TabbedConfigurationPanel: React.FC<TabbedConfigurationPanelProps> = ({
           {activeTab === 'simple-models' ? renderSimpleModelsTab() : renderAgentsTab()}
         </div>
       </div>
+
+      {/* Modals */}
+      {isCreateModalOpen && (
+        <CreatePromptModal
+          onClose={() => setIsCreateModalOpen(false)}
+          onSubmit={handleCreatePrompt}
+          loading={promptsLoading}
+        />
+      )}
+
+      {editingPrompt && (
+        <EditPromptModal
+          prompt={editingPrompt}
+          onClose={() => setEditingPrompt(null)}
+          onSubmit={handleUpdatePrompt}
+          loading={promptsLoading}
+        />
+      )}
     </div>
   );
 };

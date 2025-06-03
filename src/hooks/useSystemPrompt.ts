@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import { Conversation, Message } from '@/types';
 import { SavedPromptSummary } from '@/services/savedPromptService';
+import { useSystemPromptContext } from '@/contexts/SystemPromptContext';
 
 interface UseSystemPromptReturn {
   selectedPrompt: SavedPromptSummary | null;
@@ -12,40 +13,7 @@ interface UseSystemPromptReturn {
 }
 
 export const useSystemPrompt = (): UseSystemPromptReturn => {
-  const [selectedPrompt, setSelectedPrompt] = useState<SavedPromptSummary | null>(null);
-
-  // Load selected prompt from localStorage on mount
-  useEffect(() => {
-    const savedPromptId = localStorage.getItem('selectedSystemPromptId');
-    if (savedPromptId) {
-      // We'll need to fetch the prompt details when the component mounts
-      // For now, we just store the ID
-      const savedPromptData = localStorage.getItem('selectedSystemPrompt');
-      if (savedPromptData) {
-        try {
-          const prompt = JSON.parse(savedPromptData);
-          setSelectedPrompt(prompt);
-        } catch (error) {
-          console.error('Failed to parse saved system prompt:', error);
-          localStorage.removeItem('selectedSystemPrompt');
-          localStorage.removeItem('selectedSystemPromptId');
-        }
-      }
-    }
-  }, []);
-
-  const selectPrompt = useCallback((prompt: SavedPromptSummary | null) => {
-    setSelectedPrompt(prompt);
-    
-    // Save to localStorage
-    if (prompt) {
-      localStorage.setItem('selectedSystemPromptId', prompt._id);
-      localStorage.setItem('selectedSystemPrompt', JSON.stringify(prompt));
-    } else {
-      localStorage.removeItem('selectedSystemPromptId');
-      localStorage.removeItem('selectedSystemPrompt');
-    }
-  }, []);
+  const { selectedPrompt, selectPrompt } = useSystemPromptContext();
 
   const hasSystemPrompt = useCallback((conversation: Conversation): boolean => {
     return conversation.messages.length > 0 && 

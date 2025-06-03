@@ -42,19 +42,30 @@ export default function ConversationPage() {
     }
   }, [conversationId, selectConversation]);
 
-  // When activeConversation changes, check if it has a system prompt and update selection
+  const autoSyncRef = React.useRef<string | null>(null);
+
   useEffect(() => {
-    if (activeConversation && activeConversation.messages.length > 0) {
-      if (hasSystemPrompt(activeConversation)) {
-        // Extract system prompt from conversation and update selection
-        const extractedPrompt = extractSystemPromptFromConversation(activeConversation);
-        if (extractedPrompt && (!selectedPrompt || selectedPrompt._id === 'current-system')) {
-          // Only auto-select if no prompt is selected or if showing current system prompt
-          selectPrompt(extractedPrompt);
+    if (!activeConversation) return;
+
+    // Run sync only once per conversation load
+    if (autoSyncRef.current === activeConversation._id) return;
+
+    autoSyncRef.current = activeConversation._id as string;
+
+    if (hasSystemPrompt(activeConversation)) {
+      if (!selectedPrompt) {
+        const extracted = extractSystemPromptFromConversation(activeConversation);
+        if (extracted) {
+          selectPrompt(extracted);
         }
       }
+    } else {
+      if (selectedPrompt && selectedPrompt._id === 'current-system') {
+        selectPrompt(null);
+      }
     }
-  }, [activeConversation, hasSystemPrompt, extractSystemPromptFromConversation, selectedPrompt, selectPrompt]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConversation]);
 
   const handleSendMessage = async (content: string) => {
     if (!activeConversation) {

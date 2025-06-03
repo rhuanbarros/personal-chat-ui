@@ -8,6 +8,7 @@ import TabbedConfigurationPanel from '@/components/TabbedConfigurationPanel';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { useModelConfiguration } from '@/hooks/useModelConfiguration';
+import { SystemPromptProvider } from '@/contexts/SystemPromptContext';
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -78,6 +79,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const shouldShowConfigPanel = isInConversation && showConfigPanel;
 
   return (
+    <SystemPromptProvider>
     <div className="flex h-screen bg-gray-100 overflow-hidden">
       <Sidebar
         conversations={conversations}
@@ -115,5 +117,6 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         </div>
       )}
     </div>
+    </SystemPromptProvider>
   );
 } 

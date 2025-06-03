@@ -1,5 +1,6 @@
 /**
- * AI Service
+ * AI Service (DEPRECATED)
+ * @deprecated This service is deprecated. Use ChatService instead for new implementations.
  * Handles AI response generation by calling the Python backend API
  */
 
@@ -25,11 +26,16 @@ interface InvokeResponse {
   response: string;
 }
 
+/**
+ * @deprecated Use ChatService instead. This class will be removed in a future version.
+ */
 class AIService {
   private config: AIServiceConfig;
   private backendUrl: string;
 
   constructor(config: AIServiceConfig = {}) {
+    console.warn('⚠️  AIService is deprecated. Please migrate to ChatService for better separation of concerns and type safety.');
+    
     this.config = {
       responseDelay: 0,
       provider: 'google',
@@ -48,6 +54,7 @@ class AIService {
 
   /**
    * Generate AI response by calling the Python backend API
+   * @deprecated Use ChatService.generateResponse() instead
    * @param userMessage - The user's input message
    * @param conversationContext - Optional conversation context for better responses
    * @param overrideConfig - Optional configuration overrides for this specific request
@@ -59,6 +66,8 @@ class AIService {
     conversationContext?: string[], 
     overrideConfig?: Partial<AIServiceConfig>
   ): Promise<string> {
+    console.warn('⚠️  getAIResponse() is deprecated. Use ChatService.generateResponse() instead.');
+    
     try {
       const effectiveConfig = { ...this.config, ...overrideConfig };
       

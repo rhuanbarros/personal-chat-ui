@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Conversation from '@/models/Conversation';
-import { Message } from '@/types';
-import { aiService, AIServiceConfig } from '@/services/aiService';
+import { Message, ChatRequest, AIServiceConfig } from '@/types';
+import { chatService } from '@/services/chatService';
+import { MessageMapper } from '@/lib/messageMapper';
 import { createApiResponse, validateRequiredFields } from '@/lib/apiUtils';
+import { logger } from '@/lib/logger';
 
 // POST add message to conversation
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let conversationId: string | undefined;
+  
   try {
     await dbConnect();
     
     const { id } = await params;
+    conversationId = id;
     const body = await request.json();
     const { content, sender, modelConfig, systemPrompt } = body;
 
@@ -25,7 +30,7 @@ export async function POST(
       );
     }
 
-    const conversation = await Conversation.findById(id);
+    const conversation = await Conversation.findById(conversationId);
     
     if (!conversation) {
       return NextResponse.json(
@@ -34,93 +39,113 @@ export async function POST(
       );
     }
 
-    console.log('🔍 API: Received message request');
-    console.log('🔍 API: systemPrompt provided:', !!systemPrompt);
-    console.log('🔍 API: conversation messages before:', conversation.messages.length);
+    logger.api.info('Processing message request', {
+      conversationId,
+      sender,
+      messageLength: content.length,
+      hasSystemPrompt: !!systemPrompt,
+      hasModelConfig: !!modelConfig
+    });
 
     // Add system prompt if provided and not already present
     if (systemPrompt && !conversation.messages.some((m: Message) => m.role === 'system')) {
-      console.log('🔍 API: Adding system prompt to conversation');
-      const systemMessage = {
-        sender: 'ai',
-        content: systemPrompt,
-        timestamp: new Date(),
-        role: 'system'
-      };
+      logger.api.debug('Adding system prompt to conversation');
+      const systemMessage = MessageMapper.createSystemMessage(systemPrompt);
       conversation.messages.unshift(systemMessage); // Add at beginning
     }
 
-    // Add user message
-    const userMessage = {
-      sender,
-      content,
-      timestamp: new Date(),
-      role: sender === 'user' ? 'user' : (sender === 'ai' ? 'assistant' : undefined)
-    };
-
+    // Create and add user message
+    const userMessage = MessageMapper.createUserMessage(content);
     conversation.messages.push(userMessage);
     conversation.updatedAt = new Date();
 
-    // If it's a user message, generate AI response
+    // Generate AI response if sender is user
     if (sender === 'user') {
       try {
-        // Get conversation context for better AI responses
-        const conversationContext = conversation.messages
-          .slice(-10) // Get last 10 messages for context (increased to include more context)
-          .map((msg: Message) => {
-            // Handle system messages properly
-            if (msg.role === 'system') {
-              return `system: ${msg.content}`;
-            }
-            return `${msg.sender}: ${msg.content}`;
+        // Prepare chat request with the COMPLETE conversation history
+        // This includes the system prompt (if any) and the newly added user message
+        const chatRequest: ChatRequest = {
+          messages: conversation.messages, // Complete history - no duplication!
+          maxContextMessages: 10,
+          config: modelConfig ? mapModelConfigToAI(modelConfig) : undefined
+        };
+
+        logger.api.debug('Generating AI response', {
+          totalMessages: conversation.messages.length,
+          contextMessages: Math.min(10, conversation.messages.length),
+          model: chatRequest.config?.model,
+          provider: chatRequest.config?.provider
+        });
+
+        // Generate AI response using the new ChatService
+        const result = await chatService.generateResponse(chatRequest);
+
+        if (result.success && result.data) {
+          // Create and add AI assistant message
+          const aiMessage = MessageMapper.createAssistantMessage(result.data.content);
+          conversation.messages.push(aiMessage);
+
+          logger.api.info('AI response generated successfully', {
+            responseLength: result.data.content.length,
+            model: result.data.model,
+            provider: result.data.provider
           });
-        
-        console.log('🔍 Full conversation messages:', conversation.messages.length);
-        console.log('🔍 Context messages being sent to AI:', conversationContext);
-        console.log('🔍 System messages in conversation:', conversation.messages.filter((m: Message) => m.role === 'system').length);
-        
-        // Prepare AI service configuration override if provided
-        let aiConfigOverride: Partial<AIServiceConfig> | undefined;
-        if (modelConfig) {
-          aiConfigOverride = {
-            provider: modelConfig.provider,
-            model: modelConfig.modelName,
-            temperature: modelConfig.temperature,
-            topP: modelConfig.topP,
-          };
-          console.log('🤖 Using model configuration:', aiConfigOverride);
+        } else {
+          // Handle AI service error
+          const errorMessage = result.error?.message || 'Unknown AI service error';
+          logger.api.error('AI service failed to generate response', result.error);
+          
+          const errorResponse = MessageMapper.createAssistantMessage(
+            `❌ **AI Error**: ${errorMessage}`
+          );
+          conversation.messages.push(errorResponse);
         }
+
+      } catch (error) {
+        logger.api.error('Unexpected error during AI response generation', error);
         
-        const aiResponse = await aiService.getAIResponse(content, conversationContext, aiConfigOverride);
-        const aiMessage = {
-          sender: 'ai' as const,
-          content: aiResponse,
-          timestamp: new Date(),
-          role: 'assistant' as const
-        };
-        conversation.messages.push(aiMessage);
-      } catch (aiError) {
-        console.error('❌ AI Service Error:', aiError);
-        
-        // Add an error message from the AI
-        const errorMessage = {
-          sender: 'ai' as const,
-          content: `❌ **AI Error**: ${aiError instanceof Error ? aiError.message : 'Unknown AI service error'}`,
-          timestamp: new Date(),
-          role: 'assistant' as const
-        };
-        conversation.messages.push(errorMessage);
+        const errorResponse = MessageMapper.createAssistantMessage(
+          `❌ **Unexpected Error**: Failed to generate AI response. Please try again.`
+        );
+        conversation.messages.push(errorResponse);
       }
     }
 
+    // Save the updated conversation
     await conversation.save();
 
+    logger.api.info('Message processing completed', {
+      conversationId,
+      totalMessages: conversation.messages.length
+    });
+
     return NextResponse.json(createApiResponse(true, conversation));
+
   } catch (error) {
-    console.error('❌ Error adding message:', error);
+    // Handle logging with conditional context
+    if (conversationId) {
+      logger.api.error('Failed to process message request', error, { conversationId });
+    } else {
+      logger.api.error('Failed to process message request', error);
+    }
+    
     return NextResponse.json(
       createApiResponse(false, undefined, `Failed to add message: ${error instanceof Error ? error.message : 'Unknown error'}`),
       { status: 500 }
     );
   }
+}
+
+/**
+ * Convert ModelConfiguration to AIServiceConfig
+ * @param modelConfig Frontend model configuration
+ * @returns AI service configuration
+ */
+function mapModelConfigToAI(modelConfig: any): Partial<AIServiceConfig> {
+  return {
+    provider: modelConfig.provider,
+    model: modelConfig.modelName,
+    temperature: modelConfig.temperature,
+    topP: modelConfig.topP,
+  };
 } 

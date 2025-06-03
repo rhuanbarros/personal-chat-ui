@@ -6,6 +6,7 @@ interface UseSystemPromptReturn {
   selectedPrompt: SavedPromptSummary | null;
   selectPrompt: (prompt: SavedPromptSummary | null) => void;
   applySystemPromptToConversation: (conversation: Conversation) => Conversation;
+  removeSystemPromptFromConversation: (conversation: Conversation) => Conversation;
   extractSystemPromptFromConversation: (conversation: Conversation) => SavedPromptSummary | null;
   hasSystemPrompt: (conversation: Conversation) => boolean;
 }
@@ -113,10 +114,24 @@ export const useSystemPrompt = (): UseSystemPromptReturn => {
     };
   }, [hasSystemPrompt]);
 
+  const removeSystemPromptFromConversation = useCallback((conversation: Conversation): Conversation => {
+    if (!hasSystemPrompt(conversation)) {
+      return conversation;
+    }
+
+    const messages = conversation.messages.slice(1); // remove first message (system)
+
+    return {
+      ...conversation,
+      messages
+    };
+  }, [hasSystemPrompt]);
+
   return {
     selectedPrompt,
     selectPrompt,
     applySystemPromptToConversation,
+    removeSystemPromptFromConversation,
     extractSystemPromptFromConversation,
     hasSystemPrompt
   };

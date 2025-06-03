@@ -32,7 +32,8 @@ export default function ConversationPage() {
     selectPrompt, 
     applySystemPromptToConversation, 
     extractSystemPromptFromConversation,
-    hasSystemPrompt 
+    hasSystemPrompt,
+    removeSystemPromptFromConversation
   } = useSystemPrompt();
 
   useEffect(() => {
@@ -60,34 +61,44 @@ export default function ConversationPage() {
       return;
     }
 
-    console.log('🔍 ConversationPage: handleSendMessage called');
-    console.log('🔍 ConversationPage: selectedPrompt:', selectedPrompt);
-    console.log('🔍 ConversationPage: activeConversation messages before:', activeConversation.messages.length);
-
-    // Prepare options with system prompt if selected
+    // Prepare options object
     const messageOptions: any = {};
     if (configuration) {
       messageOptions.modelConfig = configuration;
     }
-    
-    if (selectedPrompt?.latestVersion?.text && !hasSystemPrompt(activeConversation)) {
-      console.log('🔍 ConversationPage: Adding system prompt to message options');
+
+    let workingConversation = activeConversation;
+
+    // Determine system prompt handling based on selected prompt
+    if (selectedPrompt?.latestVersion?.text) {
+      // Add or replace system prompt
+      workingConversation = applySystemPromptToConversation(activeConversation);
       messageOptions.systemPrompt = selectedPrompt.latestVersion.text;
-      
-      // Apply system prompt to local conversation for immediate UI update
-      const conversationWithPrompt = applySystemPromptToConversation(activeConversation);
-      updateActiveConversation(conversationWithPrompt);
+    } else if (!selectedPrompt && hasSystemPrompt(activeConversation)) {
+      // Remove existing system prompt
+      workingConversation = removeSystemPromptFromConversation(activeConversation);
+      messageOptions.systemPrompt = '';
     }
 
-    // Use optimistic updates for better UX
+    // Update local state optimistically before sending
+    if (workingConversation !== activeConversation) {
+      updateActiveConversation(workingConversation);
+    }
+
+    // Ensure we pass systemPrompt even if it's an empty string (for removal)
+    const optionsToSend = {
+      modelConfig: configuration,
+      ...(messageOptions.hasOwnProperty('systemPrompt') ? { systemPrompt: messageOptions.systemPrompt } : {})
+    };
+
+    // Use optimistic update for the message send
     const updatedConversation = await sendMessageOptimistic(
-      activeConversation, 
-      content, 
+      workingConversation,
+      content,
       updateActiveConversation,
-      messageOptions.systemPrompt ? messageOptions : { modelConfig: configuration }
+      optionsToSend
     );
-    
-    // Update the active conversation state with the final result
+
     if (updatedConversation) {
       updateActiveConversation(updatedConversation);
     }

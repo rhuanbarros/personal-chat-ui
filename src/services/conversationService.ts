@@ -162,8 +162,8 @@ class ConversationService {
         requestBody.modelConfig = options.modelConfig;
       }
       
-      // Include system prompt if provided
-      if (options?.systemPrompt) {
+      // Include system prompt if provided (even if empty string)
+      if (options && Object.prototype.hasOwnProperty.call(options, 'systemPrompt')) {
         requestBody.systemPrompt = options.systemPrompt;
       }
 

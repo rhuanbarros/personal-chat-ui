@@ -47,11 +47,29 @@ export async function POST(
       hasModelConfig: !!modelConfig
     });
 
-    // Add system prompt if provided and not already present
-    if (systemPrompt && !conversation.messages.some((m: Message) => m.role === 'system')) {
-      logger.api.debug('Adding system prompt to conversation');
-      const systemMessage = MessageMapper.createSystemMessage(systemPrompt);
-      conversation.messages.unshift(systemMessage); // Add at beginning
+    // Handle system prompt logic (add, replace, or remove)
+    if (typeof systemPrompt === 'string') {
+      const existingSystemIndex = conversation.messages.findIndex((m: Message) => m.role === 'system');
+
+      if (systemPrompt.trim() === '') {
+        // Remove existing system prompt if present
+        if (existingSystemIndex !== -1) {
+          logger.api.debug('Removing existing system prompt from conversation');
+          conversation.messages.splice(existingSystemIndex, 1);
+        }
+      } else {
+        const newSystemMessage = MessageMapper.createSystemMessage(systemPrompt);
+
+        if (existingSystemIndex !== -1) {
+          // Replace the existing system prompt
+          logger.api.debug('Replacing existing system prompt');
+          conversation.messages[existingSystemIndex] = newSystemMessage;
+        } else {
+          // Insert new system prompt at the beginning
+          logger.api.debug('Adding new system prompt to conversation');
+          conversation.messages.unshift(newSystemMessage);
+        }
+      }
     }
 
     // Create and add user message

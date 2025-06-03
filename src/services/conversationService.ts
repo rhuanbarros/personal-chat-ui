@@ -184,6 +184,52 @@ class ConversationService {
   }
 
   /**
+   * Edit a message in a conversation
+   * @param conversationId - The conversation ID
+   * @param messageIndex - The index of the message to edit (in visible messages, excluding system messages)
+   * @param newContent - The new message content
+   * @param options - Additional options including model configuration
+   * @returns Promise with the updated conversation
+   */
+  async editMessage(
+    conversationId: string,
+    messageIndex: number,
+    newContent: string,
+    options?: SendMessageOptions
+  ): Promise<Conversation> {
+    try {
+      const requestBody: any = {
+        messageIndex,
+        newContent
+      };
+
+      // Include model configuration if provided
+      if (options?.modelConfig) {
+        requestBody.modelConfig = options.modelConfig;
+      }
+      
+      // Include system prompt if provided (even if empty string)
+      if (options && Object.prototype.hasOwnProperty.call(options, 'systemPrompt')) {
+        requestBody.systemPrompt = options.systemPrompt;
+      }
+
+      const response = await apiFetch<Conversation>(`${this.baseUrl}/${conversationId}/edit-message`, {
+        method: 'PUT',
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.data) {
+        throw new ApiError('No conversation data returned');
+      }
+      
+      return response.data;
+    } catch (error) {
+      console.error('Error editing message:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Delete a conversation
    * @param conversationId - The conversation ID
    * @returns Promise indicating success

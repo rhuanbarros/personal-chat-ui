@@ -11,11 +11,18 @@ import { toast } from 'react-toastify';
 interface UseMessagesReturn {
   sendingMessage: boolean;
   aiThinking: boolean;
+  editingMessage: boolean;
   sendMessage: (conversationId: string, content: string, options?: SendMessageOptions) => Promise<Conversation | null>;
   sendMessageOptimistic: (
     conversation: Conversation, 
     content: string, 
     onOptimisticUpdate: (updatedConversation: Conversation) => void,
+    options?: SendMessageOptions
+  ) => Promise<Conversation | null>;
+  editMessage: (
+    conversationId: string,
+    messageIndex: number,
+    newContent: string,
     options?: SendMessageOptions
   ) => Promise<Conversation | null>;
   error: string | null;
@@ -25,6 +32,7 @@ interface UseMessagesReturn {
 export const useMessages = (): UseMessagesReturn => {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [aiThinking, setAiThinking] = useState(false);
+  const [editingMessage, setEditingMessage] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -160,6 +168,46 @@ export const useMessages = (): UseMessagesReturn => {
   }, []);
 
   /**
+   * Edit a message in a conversation
+   * This will replace the message and remove all subsequent messages, then generate a new AI response
+   */
+  const editMessage = useCallback(async (
+    conversationId: string,
+    messageIndex: number,
+    newContent: string,
+    options?: SendMessageOptions
+  ): Promise<Conversation | null> => {
+    if (!conversationId || !newContent.trim()) {
+      toast.error('Conversation ID and message content are required');
+      return null;
+    }
+
+    try {
+      setEditingMessage(true);
+      setError(null);
+      
+      // Edit the message through the conversation service
+      // The API will handle updating the message, removing subsequent messages, and generating AI response
+      const updatedConversation = await conversationService.editMessage(
+        conversationId,
+        messageIndex,
+        newContent.trim(),
+        options
+      );
+      
+      toast.success('Message updated successfully');
+      return updatedConversation;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to edit message';
+      setError(errorMessage);
+      toast.error(errorMessage);
+      return null;
+    } finally {
+      setEditingMessage(false);
+    }
+  }, []);
+
+  /**
    * Clear current error
    */
   const clearError = useCallback(() => {
@@ -169,8 +217,10 @@ export const useMessages = (): UseMessagesReturn => {
   return {
     sendingMessage,
     aiThinking,
+    editingMessage,
     sendMessage,
     sendMessageOptimistic,
+    editMessage,
     error,
     clearError
   };

@@ -23,7 +23,9 @@ export default function ConversationPage() {
 
   const {
     aiThinking,
-    sendMessageOptimistic
+    editingMessage,
+    sendMessageOptimistic,
+    editMessage
   } = useMessages();
 
   const { configuration } = useModelConfiguration();
@@ -115,13 +117,63 @@ export default function ConversationPage() {
     }
   };
 
+  const handleEditMessage = async (messageIndex: number, newContent: string) => {
+    if (!activeConversation) {
+      return;
+    }
+
+    // Prepare options object similar to handleSendMessage
+    const messageOptions: any = {};
+    if (configuration) {
+      messageOptions.modelConfig = configuration;
+    }
+
+    let workingConversation = activeConversation;
+
+    // Determine system prompt handling based on selected prompt
+    if (selectedPrompt?.latestVersion?.text) {
+      // Add or replace system prompt
+      workingConversation = applySystemPromptToConversation(activeConversation);
+      messageOptions.systemPrompt = selectedPrompt.latestVersion.text;
+    } else if (!selectedPrompt && hasSystemPrompt(activeConversation)) {
+      // Remove existing system prompt
+      workingConversation = removeSystemPromptFromConversation(activeConversation);
+      messageOptions.systemPrompt = '';
+    }
+
+    // Update local state optimistically before editing
+    if (workingConversation !== activeConversation) {
+      updateActiveConversation(workingConversation);
+    }
+
+    // Ensure we pass systemPrompt even if it's an empty string (for removal)
+    const optionsToSend = {
+      modelConfig: configuration,
+      ...(messageOptions.hasOwnProperty('systemPrompt') ? { systemPrompt: messageOptions.systemPrompt } : {})
+    };
+
+    // Edit the message
+    const updatedConversation = await editMessage(
+      workingConversation._id!,
+      messageIndex,
+      newContent,
+      optionsToSend
+    );
+
+    if (updatedConversation) {
+      updateActiveConversation(updatedConversation);
+    }
+  };
+
   return (
     <ChatView
       conversation={activeConversation}
       onSendMessage={handleSendMessage}
+      onEditMessage={handleEditMessage}
       onUpdateTitle={updateConversationTitle}
       loading={conversationsLoading}
       aiThinking={aiThinking}
+      editingMessage={editingMessage}
       configuration={configuration}
     />
   );

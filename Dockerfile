@@ -12,6 +12,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Set build-time environment variables
+ARG MONGODB_URI
+ENV MONGODB_URI=$MONGODB_URI
+
 # Build the Next.js application
 RUN npm run build
 
